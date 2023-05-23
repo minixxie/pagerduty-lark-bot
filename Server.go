@@ -280,7 +280,7 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
               {
                 "tag": "button",
                 "text": {
-                  "content": "加急“,
+                  "content": "加急",
                   "tag": "plain_text"
                 },
                 "type": "danger",
@@ -301,7 +301,7 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
               {
                 "tag": "button",
                 "text": {
-                  "content": "Pagerduty High Urgency Call“,
+                  "content": "Pagerduty High Urgency Call",
                   "tag": "plain_text"
                 },
                 "type": "danger",
@@ -328,7 +328,7 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
           {
             "tag": "div",
             "text": {
-              "content": "[View on Pagerduty](%s/escalation_policies#%s) | [Incident Handling Guideline](https://www.google.com)"
+              "content": "[View on Pagerduty](%s/escalation_policies#%s) | [Incident Handling Guideline](https://www.google.com)",
               "tag": "lark_md"
             }
           }
@@ -372,7 +372,7 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
               {
                 "tag": "button",
                 "text": {
-                  "content": "Buzz“,
+                  "content": "Buzz",
                   "tag": "plain_text"
                 },
                 "type": "danger",
@@ -393,7 +393,7 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
               {
                 "tag": "button",
                 "text": {
-                  "content": "Pagerduty High Urgency Call“,
+                  "content": "Pagerduty High Urgency Call",
                   "tag": "plain_text"
                 },
                 "type": "danger",
@@ -420,7 +420,7 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
           {
             "tag": "div",
             "text": {
-              "content": "[View on Pagerduty](%s/escalation_policies#%s) | [Incident Handling Guideline](https://www.google.com)"
+              "content": "[View on Pagerduty](%s/escalation_policies#%s) | [Incident Handling Guideline](https://www.google.com)",
               "tag": "lark_md"
             }
           }
