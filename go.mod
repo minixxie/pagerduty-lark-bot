@@ -1,4 +1,4 @@
-module github.com/minixxie/pagerduty-lark-bot
+module github.com/minixxie/pdbot
 
 go 1.20
 
