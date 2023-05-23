@@ -16,9 +16,10 @@ import (
 	"strings"
 	"os"
 	"time"
+	"log"
 )
 
-type PagerdutyBotServer struct {
+type Server struct {
 	// References
 	PagerdutyClient *pagerduty.Client
 	LarkBot         *lark.Bot
@@ -34,11 +35,25 @@ type PagerdutyBotServer struct {
 	EscalationPoliciesIDByName map[string]string `json:"escalationPoliciesIDByName"`
 }
 
-func NewPagerdutyBotServer() *PagerdutyBotServer {
-	var server PagerdutyBotServer
+func NewServer() *Server {
+	var server Server
 
-	server.PagerdutyClient = pagerduty.NewClient(os.Getenv("PAGERDUTY_AUTH_TOKEN"))
-	server.LarkBot = lark.NewChatBot(os.Getenv("LARK_APP_ID"), os.Getenv("LARK_APP_SECRET"))
+	pdAuthToken := os.Getenv("PAGERDUTY_AUTH_TOKEN")
+	if pdAuthToken == "" {
+		log.Panicln("Please set PAGERDUTY_AUTH_TOKEN env var")
+	} else {
+		server.PagerdutyClient = pagerduty.NewClient(pdAuthToken)
+	}
+
+	larkAppID := os.Getenv("LARK_APP_ID")
+	larkAppSecret := os.Getenv("LARK_APP_SECRET")
+	if larkAppSecret == "" {
+		log.Panicln("Please set LARK_APP_ID env var")
+	} else if larkAppSecret == "" {
+		log.Panicln("Please set LARK_APP_SECRET env var")
+	} else {
+		server.LarkBot = lark.NewChatBot(larkAppID, larkAppSecret)
+	}
 
 	server.EscalationPolicies = make(map[string]*pagerduty.EscalationPolicy)
 	server.Users = make(map[string]*pagerduty.User)
@@ -48,12 +63,12 @@ func NewPagerdutyBotServer() *PagerdutyBotServer {
 	return &server
 }
 
-func (this PagerdutyBotServer) Print() {
+func (this Server) Print() {
 	b, _ := json.Marshal(this)
 	fmt.Println(string(b))
 }
 
-func (this PagerdutyBotServer) LoadEscalationPolicies() {
+func (this Server) LoadEscalationPolicies() {
 	var opts pagerduty.ListEscalationPoliciesOptions
 	opts.Limit = 100
 
@@ -70,7 +85,7 @@ func (this PagerdutyBotServer) LoadEscalationPolicies() {
 	}
 }
 
-func (this PagerdutyBotServer) LoadUsers() {
+func (this Server) LoadUsers() {
 	more := true
 	var offset uint
 
@@ -94,7 +109,7 @@ func (this PagerdutyBotServer) LoadUsers() {
 
 }
 
-func (this PagerdutyBotServer) GetSchedule(scheduleID string) *pagerduty.Schedule {
+func (this Server) GetSchedule(scheduleID string) *pagerduty.Schedule {
 	var opts pagerduty.GetScheduleOptions
 
 	since := time.Now().Unix()
@@ -115,7 +130,7 @@ func (this PagerdutyBotServer) GetSchedule(scheduleID string) *pagerduty.Schedul
 	return schedule
 }
 
-func (this PagerdutyBotServer) PrintEscalationPolicyByName(rootMsgID string, escalationPolicyName string, buzz bool, larkMsg bool) string {
+func (this Server) PrintEscalationPolicyByName(rootMsgID string, escalationPolicyName string, buzz bool, larkMsg bool) string {
 	escalationPolicyID, found := this.EscalationPoliciesIDByName[escalationPolicyName]
 	if found {
 		return this.PrintEscalationPolicy(rootMsgID, escalationPolicyID, buzz, larkMsg)
@@ -124,7 +139,7 @@ func (this PagerdutyBotServer) PrintEscalationPolicyByName(rootMsgID string, esc
 	}
 }
 
-func (this PagerdutyBotServer) PrintEscalationPolicy(rootMsgID string, escalationPolicyID string, buzz bool, larkMsg bool) string {
+func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID string, buzz bool, larkMsg bool) string {
 	var result string
 
 	ep := this.EscalationPolicies[escalationPolicyID]
@@ -421,7 +436,8 @@ func (this PagerdutyBotServer) PrintEscalationPolicy(rootMsgID string, escalatio
 	fmt.Printf("%s\n", str)
 
 	msg := lark.NewMsgBuffer(lark.MsgInteractive)
-	om := msg.BindEmail(os.Getenv("TEST_EMAIL")).Card(str).Build()
+	larkEmail := os.Getenv("TEST_EMAIL")
+	om := msg.BindEmail(larkEmail).Card(str).Build()
 	resp, err := this.LarkBot.PostMessage(om)
 	fmt.Println("resp: %v\n", resp)
 	if err != nil {
@@ -433,7 +449,7 @@ func (this PagerdutyBotServer) PrintEscalationPolicy(rootMsgID string, escalatio
 	return result
 }
 
-func (this PagerdutyBotServer) buzz(messageId string, userIDs []string) {
+func (this Server) buzz(messageId string, userIDs []string) {
 	type BuzzUsersResponseData struct {
 		// UserList []GetUserByEmailResponseDataUser `json:"user_list"`
 	}
@@ -458,7 +474,7 @@ func (this PagerdutyBotServer) buzz(messageId string, userIDs []string) {
 	}
 }
 
-func (this PagerdutyBotServer) LoadLarkUsers() {
+func (this Server) LoadLarkUsers() {
 	// get keys of "this.Users" map as a slice
 	userIDs := make([]string, len(this.Users))
 	i := 0
@@ -516,7 +532,7 @@ func (this PagerdutyBotServer) LoadLarkUsers() {
 	}
 }
 
-func (this PagerdutyBotServer) rootHandler() func(c *gin.Context) {
+func (this Server) rootHandler() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		type RequestBody struct {
 			Encrypt string `json:"encrypt"`
@@ -529,6 +545,10 @@ func (this PagerdutyBotServer) rootHandler() func(c *gin.Context) {
 
 		fmt.Printf("encrypt: %s\n", reqBody.Encrypt)
 
+		larkAppDecryptKey := os.Getenv("LARK_APP_DECRYPT_KEY")
+		if larkAppDecryptKey == "" {
+			log.Panicln("Please set LARK_APP_DECRYPT_KEY env var")
+		}
 		decrypted, err := this.decrypt(reqBody.Encrypt, os.Getenv("LARK_APP_DECRYPT_KEY"))
 		if err != nil {
 			panic(err)
@@ -615,9 +635,14 @@ func (this PagerdutyBotServer) rootHandler() func(c *gin.Context) {
 					fmt.Printf("cmd:--%s--\n", cmd)
 					fmt.Printf("param:--%s--\n", param)
 
+					larkBotOpenID := os.Getenv("LARK_BOT_OPEN_ID")
+					if larkBotOpenID == "" {
+						log.Panicln("Please set LARK_BOT_OPEN_ID env var")
+					}
+
 					mentionedThisBot := false
 					for _, mention := range decryptedBody.Event.Message.Mentions {
-						if mention.ID.OpenID == os.Getenv("LARK_BOT_OPEN_ID") { // mentioned this bot
+						if mention.ID.OpenID == larkBotOpenID { // mentioned this bot
 							mentionedThisBot = true
 							break
 
@@ -640,15 +665,19 @@ func (this PagerdutyBotServer) rootHandler() func(c *gin.Context) {
 	}
 }
 
-func (this PagerdutyBotServer) list(rootMsgID string) {
+func (this Server) list(rootMsgID string) {
 	s := "=== list of Escalation Policies ===\n"
 	for _, escalationPolicy := range this.EscalationPolicies {
 		s += fmt.Sprintf("%s\n", escalationPolicy.Name)
 	}
-	this.LarkBot.PostText(s, lark.WithEmail(os.Getenv("TEST_EMAIL")))
+	larkEmail := os.Getenv("TEST_EMAIL")
+	if larkEmail == "" {
+		log.Panicln("Please set TEST_EMAIL env var")
+	}
+	this.LarkBot.PostText(s, lark.WithEmail(larkEmail))
 }
 
-func (this PagerdutyBotServer) at() func(c *gin.Context) {
+func (this Server) at() func(c *gin.Context) {
 	return func(c *gin.Context) {
 		type EscalationPolicyParams struct {
 			Name string `form:"name"`
@@ -669,7 +698,7 @@ func (this PagerdutyBotServer) at() func(c *gin.Context) {
 	}
 }
 
-func (this PagerdutyBotServer) decrypt(encrypt string, key string) (string, error) {
+func (this Server) decrypt(encrypt string, key string) (string, error) {
 	buf, err := base64.StdEncoding.DecodeString(encrypt)
 	if err != nil {
 		return "", fmt.Errorf("base64StdEncode Error[%v]", err)
@@ -701,11 +730,14 @@ func (this PagerdutyBotServer) decrypt(encrypt string, key string) (string, erro
 	return string(buf[n : m+1]), nil
 }
 
-func (this PagerdutyBotServer) sendLarkMsg(msg string) {
-	this.LarkBot.PostText(msg, lark.WithEmail(os.Getenv("TEST_EMAIL")))
+func (this Server) sendLarkMsg(msg string) {
+	larkEmail := os.Getenv("TEST_EMAIL")
+	if larkEmail != "" {
+		this.LarkBot.PostText(msg, lark.WithEmail(larkEmail))
+	}
 }
 
-func (this PagerdutyBotServer) Run(hostAndPort string) {
+func (this Server) Run(hostAndPort string) {
 
 	this.LoadEscalationPolicies()
 	this.LoadUsers()

@@ -1,6 +1,6 @@
 package pdbot
 
 func main() {
-	pagerdutyBotServer := NewPagerdutyBotServer()
+	pagerdutyBotServer := NewServer()
 	pagerdutyBotServer.Run(":8080")
 }
