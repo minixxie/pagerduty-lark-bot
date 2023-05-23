@@ -208,7 +208,7 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
       },
       {
         "tag": "div",
-        "text: {
+        "text": {
           "content": "%s",
           "tag": "lark_md"
         }
