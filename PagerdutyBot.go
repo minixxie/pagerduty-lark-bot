@@ -1,4 +1,4 @@
-package main
+package pdbot
 
 import (
 	"encoding/json"
