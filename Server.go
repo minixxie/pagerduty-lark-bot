@@ -437,7 +437,13 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
 
 	msg := lark.NewMsgBuffer(lark.MsgInteractive)
 	larkEmail := os.Getenv("TEST_EMAIL")
-	om := msg.BindEmail(larkEmail).Card(str).Build()
+	if larkEmail != "" {
+		msg.BindEmail(larkEmail)
+	}
+	if rootMsgID != "" {
+		msg.BindReply(rootMsgID)
+	}
+	om := msg.Card(str).Build()
 	resp, err := this.LarkBot.PostMessage(om)
 	fmt.Println("resp: %v\n", resp)
 	if err != nil {
