@@ -662,12 +662,36 @@ func (this Server) rootHandler() func(c *gin.Context) {
 							this.PrintEscalationPolicyByName(decryptedBody.Event.Message.MessageID, param, false, true)
 						} else if cmd == "/buzz" {
 							this.PrintEscalationPolicyByName(decryptedBody.Event.Message.MessageID, param, true, true)
+						} else {
+							this.help(decryptedBody.Event.Message.MessageID)
 						}
 					}
 				}
 			}
 		}
 		c.IndentedJSON(http.StatusOK, map[string]interface{}{})
+	}
+}
+
+func (this Server) help(rootMsgID string) {
+	s := "=== PagerDuty Bot, we accept these commands: ===\n"
+	s += "/help                         # show this help message\n"
+	s += "/list                         # list all PagerDuty Escalation Policies\n"
+	s += "/at escalation_policy_name    # tag on-call people of an Escalation Policy\n"
+
+	msg := lark.NewMsgBuffer(lark.MsgText)
+	larkEmail := os.Getenv("TEST_EMAIL")
+	if larkEmail != "" {
+		msg.BindEmail(larkEmail)
+	}
+	if rootMsgID != "" {
+		msg.BindReply(rootMsgID)
+	}
+	om := msg.Text(s).Build()
+	resp, err := this.LarkBot.PostMessage(om)
+	fmt.Println("resp: %v\n", resp)
+	if err != nil {
+		panic(err)
 	}
 }
 
