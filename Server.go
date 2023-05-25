@@ -676,11 +676,21 @@ func (this Server) list(rootMsgID string) {
 	for _, escalationPolicy := range this.EscalationPolicies {
 		s += fmt.Sprintf("%s\n", escalationPolicy.Name)
 	}
+
+	msg := lark.NewMsgBuffer(lark.MsgText)
 	larkEmail := os.Getenv("TEST_EMAIL")
-	if larkEmail == "" {
-		log.Panicln("Please set TEST_EMAIL env var")
+	if larkEmail != "" {
+		msg.BindEmail(larkEmail)
 	}
-	this.LarkBot.PostText(s, lark.WithEmail(larkEmail))
+	if rootMsgID != "" {
+		msg.BindReply(rootMsgID)
+	}
+	om := msg.Text(s).Build()
+	resp, err := this.LarkBot.PostMessage(om)
+	fmt.Println("resp: %v\n", resp)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (this Server) at() func(c *gin.Context) {
