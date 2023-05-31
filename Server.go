@@ -53,6 +53,7 @@ func NewServer() *Server {
 		log.Panicln("Please set LARK_APP_SECRET env var")
 	} else {
 		server.LarkBot = lark.NewChatBot(larkAppID, larkAppSecret)
+		server.LarkBot.StartHeartbeat()
 	}
 
 	server.EscalationPolicies = make(map[string]*pagerduty.EscalationPolicy)
