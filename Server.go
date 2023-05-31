@@ -45,6 +45,15 @@ func NewServer() *Server {
 		server.PagerdutyClient = pagerduty.NewClient(pdAuthToken)
 	}
 
+	server.EscalationPolicies = make(map[string]*pagerduty.EscalationPolicy)
+	server.Users = make(map[string]*pagerduty.User)
+	server.Schedules = make(map[string]*pagerduty.Schedule)
+	server.EscalationPoliciesIDByName = make(map[string]string)
+	server.EmailToLarkUserIDs = make(map[string]string)
+	return &server
+}
+
+func (this Server) newLarkBotClient() *lark.Bot {
 	larkAppID := os.Getenv("LARK_APP_ID")
 	larkAppSecret := os.Getenv("LARK_APP_SECRET")
 	if larkAppSecret == "" {
@@ -52,15 +61,9 @@ func NewServer() *Server {
 	} else if larkAppSecret == "" {
 		log.Panicln("Please set LARK_APP_SECRET env var")
 	} else {
-		server.LarkBot = lark.NewChatBot(larkAppID, larkAppSecret)
+		return lark.NewChatBot(larkAppID, larkAppSecret)
 	}
-
-	server.EscalationPolicies = make(map[string]*pagerduty.EscalationPolicy)
-	server.Users = make(map[string]*pagerduty.User)
-	server.Schedules = make(map[string]*pagerduty.Schedule)
-	server.EscalationPoliciesIDByName = make(map[string]string)
-	server.EmailToLarkUserIDs = make(map[string]string)
-	return &server
+	return nil
 }
 
 func (this Server) Print() {
@@ -444,7 +447,8 @@ func (this Server) PrintEscalationPolicy(rootMsgID string, escalationPolicyID st
 		msg.BindReply(rootMsgID)
 	}
 	om := msg.Card(str).Build()
-	resp, err := this.LarkBot.PostMessage(om)
+	larkBot := this.newLarkBotClient()
+	resp, err := larkBot.PostMessage(om)
 	fmt.Println("resp: %v\n", resp)
 	if err != nil {
 		panic(err)
@@ -465,7 +469,8 @@ func (this Server) buzz(messageId string, userIDs []string) {
 	}
 
 	var respData BuzzUsersResponse
-	err := this.LarkBot.PatchAPIRequest(
+	larkBot := this.newLarkBotClient()
+	err := larkBot.PatchAPIRequest(
 		"",
 		"/open-apis/im/v1/messages/"+messageId+"/urgent_phone?user_id_type=open_id",
 		true,
@@ -520,7 +525,8 @@ func (this Server) LoadLarkUsers() {
 		}
 
 		var respData GetUserByEmailResponse
-		err := this.LarkBot.PostAPIRequest(
+		larkBot := this.newLarkBotClient()
+		err := larkBot.PostAPIRequest(
 			"",
 			"/open-apis/contact/v3/users/batch_get_id?user_id_type=open_id",
 			true,
@@ -688,7 +694,8 @@ func (this Server) help(rootMsgID string) {
 		msg.BindReply(rootMsgID)
 	}
 	om := msg.Text(s).Build()
-	resp, err := this.LarkBot.PostMessage(om)
+	larkBot := this.newLarkBotClient()
+	resp, err := larkBot.PostMessage(om)
 	fmt.Println("resp: %v\n", resp)
 	if err != nil {
 		panic(err)
@@ -710,7 +717,8 @@ func (this Server) list(rootMsgID string) {
 		msg.BindReply(rootMsgID)
 	}
 	om := msg.Text(s).Build()
-	resp, err := this.LarkBot.PostMessage(om)
+	larkBot := this.newLarkBotClient()
+	resp, err := larkBot.PostMessage(om)
 	fmt.Println("resp: %v\n", resp)
 	if err != nil {
 		panic(err)
@@ -771,9 +779,10 @@ func (this Server) decrypt(encrypt string, key string) (string, error) {
 }
 
 func (this Server) sendLarkMsg(msg string) {
+	larkBot := this.newLarkBotClient()
 	larkEmail := os.Getenv("TEST_EMAIL")
 	if larkEmail != "" {
-		this.LarkBot.PostText(msg, lark.WithEmail(larkEmail))
+		larkBot.PostText(msg, lark.WithEmail(larkEmail))
 	}
 }
 
@@ -784,7 +793,8 @@ func (this Server) Run(hostAndPort string) {
 
 	this.Print()
 
-	_, err := this.LarkBot.GetTenantAccessTokenInternal(true)
+	larkBot := this.newLarkBotClient()
+	_, err := larkBot.GetTenantAccessTokenInternal(true)
 	if err != nil {
 		panic(err)
 	}
